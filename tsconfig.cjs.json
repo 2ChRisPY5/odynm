@@ -1,0 +1,12 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"module": "CommonJS",
+		"rootDir": "src/esm",
+		"outDir": "dist/cjs",
+		"declaration": false
+	},
+	"include": [
+		"src/esm/**/*"
+	]
+}

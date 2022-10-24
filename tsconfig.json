@@ -1,0 +1,16 @@
+{
+	"compilerOptions": {
+		"target": "esnext",
+		"module": "esnext",
+		"strict": true,
+		"moduleResolution": "node",
+		"rootDir": "src",
+		"outDir": "dist",
+		"experimentalDecorators": true,
+		"stripInternal": true,
+		"declaration": true,
+		"lib": [
+			"ES2020"
+		]
+	}
+}

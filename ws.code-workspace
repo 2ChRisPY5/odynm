@@ -1,0 +1,41 @@
+{
+	"folders": [
+		{
+			"path": "./"
+		}
+	],
+	"extensions": {
+		"recommendations": [
+			"dbaeumer.vscode-eslint",
+			"arcanis.vscode-zipfs"
+		]
+	},
+	"settings": {
+		"eslint.nodePath": ".yarn/sdks",
+		"typescript.tsdk": ".yarn/sdks/typescript/lib",
+		"typescript.enablePromptUseWorkspaceTsdk": true,
+		"editor.insertSpaces": false,
+		"editor.detectIndentation": false,
+		"editor.formatOnSave": true,
+		"files.insertFinalNewline": true,
+		"files.trimTrailingWhitespace": true,
+		"editor.codeActionsOnSave": {
+			"source.fixAll.eslint": true
+		},
+		"editor.defaultFormatter": "dbaeumer.vscode-eslint",
+		"eslint.format.enable": true,
+		"files.exclude": {
+			".yarn": true,
+			"dist": true,
+			"node_modules": true,
+			".pnp.cjs": true,
+			".pnp.loader.mjs": true
+		},
+		"[json]": {
+			"editor.defaultFormatter": "vscode.json-language-features"
+		},
+		"[jsonc]": {
+			"editor.defaultFormatter": "vscode.json-language-features"
+		}
+	}
+}

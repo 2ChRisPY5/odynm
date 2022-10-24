@@ -1,0 +1,22 @@
+{
+	"name": "odynm",
+	"version": "1.0.0-alpha.1",
+	"main": "./cjs/index.cjs",
+	"module": "./esm/index.mjs",
+	"types": "./esm/index.d.mts",
+	"exports": {
+		".": {
+			"types": "./esm/index.d.mts",
+			"import": "./esm/index.mjs",
+			"require": "./cjs/index.cjs"
+		}
+	},
+	"files": [
+		"cjs",
+		"esm"
+	],
+	"peerDependencies": {
+		"@aws-sdk/client-dynamodb": "^3.0.0",
+		"@aws-sdk/lib-dynamodb": "^3.0.0"
+	}
+}
