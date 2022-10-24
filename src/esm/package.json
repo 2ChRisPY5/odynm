@@ -1,6 +1,6 @@
 {
 	"name": "odynm",
-	"version": "1.0.0-alpha.1",
+	"version": "1.0.0",
 	"main": "./cjs/index.cjs",
 	"module": "./esm/index.mjs",
 	"types": "./esm/index.d.mts",
