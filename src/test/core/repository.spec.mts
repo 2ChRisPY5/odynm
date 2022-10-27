@@ -4,7 +4,7 @@ import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import test from 'ava';
 import { attributeExists, attributeNotExists, greaterThanOrEqual, attributeType, isIn, between,
 	isNull, nullOrUndefined, not, equal, lessThan } from '../../esm/core/conditions.mjs';
-import { Attribute, Item, ODynM } from '../../esm/index.mjs';
+import { Attribute, Item, ODynM, PostLoad, PrePut, PreUpdate } from '../../esm/index.mjs';
 
 // test declarations
 const table = 'projects';
@@ -39,7 +39,6 @@ const REPO = ODYNM.getRepository(Project);
 
 // create table with test data
 test.beforeEach('recreate DynamoDB table', async _ => {
-	await CLIENT.send(new DeleteTableCommand({ TableName: table }));
 	await CLIENT.send(new CreateTableCommand({
 		TableName: table,
 		KeySchema: [{ AttributeName: 'pk', KeyType: 'HASH' }, { AttributeName: 'sk', KeyType: 'RANGE' }],
@@ -52,6 +51,10 @@ test.beforeEach('recreate DynamoDB table', async _ => {
 		REPO.putAll({ name: 'PROJECT_A', version: 'Initial', revision: 1 },
 			{ name: 'PROJECT_B', version: 'Something', revision: 2 })
 	]);
+});
+// drop table afterwards
+test.afterEach('drop DynamoDB table', async _ => {
+	await CLIENT.send(new DeleteTableCommand({ TableName: table }));
 });
 
 // test section
@@ -166,4 +169,38 @@ test.serial('updateAll', async ctx => {
 	await REPO.updateAll({ name: 'PROJECT_B', version: 'Something', revision: 2, date: 1911  },
 		{ name: 'PROJECT_A', version: 'Initial', revision: 515, date: null });
 	ctx.pass();
+});
+
+test.serial('hooks', async ctx => {
+	let prePutRun = false;
+	let preUpdateRun = false;
+	let postLoadRun = false;
+
+	class HookedProject extends Project {
+		@PrePut
+		private readonly prePut = () => {
+				prePutRun = true;
+			};
+
+		@PreUpdate
+		private readonly preUpdate = () => {
+				preUpdateRun = true;
+			};
+
+		@PostLoad
+		private readonly postLoad = () => {
+				postLoadRun = true;
+			};
+	}
+
+	const project = new HookedProject({ name: 'HOOK', revision: 1, version: '1' });
+	const repo = ODYNM.getRepository(HookedProject);
+
+	await repo.put(project);
+	await repo.update(project);
+	await repo.get(project);
+
+	ctx.true(prePutRun);
+	ctx.true(preUpdateRun);
+	ctx.true(postLoadRun);
 });

@@ -68,6 +68,7 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	 * @see Repository#put
 	 */
 	readonly put = async (item: T) => {
+		applyHooks(this.metadata.getHooks('prePut'), item);
 		await this.client.send(new PutCommand({
 			TableName: this.metadata.getTable(),
 			Item: this.mapper.serialize(item)
@@ -83,6 +84,7 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 			return;
 		}
 
+		applyHooks(this.metadata.getHooks('prePut'), ...items);
 		await Promise.all(partition(25, ...items.map(it => this.mapper.serialize(it)))
 			.map(batch => this.batchItems(batch, Item => {
 				return { PutRequest: { Item } };
@@ -183,6 +185,8 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	 * @see Repository#update
 	 */
 	readonly update = async (item: T) => {
+		applyHooks(this.metadata.getHooks('preUpdate'), item);
+
 		const input: UpdateCommandInput = {
 			TableName: this.metadata.getTable(),
 			Key: this.buildGetKey(item),
@@ -501,3 +505,15 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 			.orElseGet(() => Promise.resolve());
 	};
 }
+
+/**
+ * Apply the given hooks on the items
+ *
+ * @param hooks the hooks to apply
+ * @param items the instantiated items
+ */
+const applyHooks = (hooks: string[], ...items: any[]) => {
+	hooks.map(hook => items.map(it => Optional.of(it[hook])))
+		.flat()
+		.forEach(hook => hook.ifPresent(fn => fn()));
+};

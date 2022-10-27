@@ -83,6 +83,9 @@ export class ItemMapper<T extends Constructable> {
 					.ifPresent(val => created[attr] = val);
 			});
 
+		this.metadata.getHooks('postLoad')
+			.map(hook => Optional.of(created[hook]))
+			.forEach(hook => hook.ifPresent(fn => fn()));
 		return created;
 	};
 

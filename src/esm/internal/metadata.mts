@@ -11,6 +11,9 @@ export type Attribute = AttributeConfig & { type?: Constructable };
 // @internal
 export type KeyDef = KeyDefinition & { expression?: string, templateAttributes: Set<string> };
 
+// @internal
+type Hooks = { prePut: string[], preUpdate: string[], postLoad: string[] };
+
 /**
  * Metadata implementation
  * @internal
@@ -39,6 +42,9 @@ export class Metadata {
 
 	// type definitions
 	private readonly types: Record<string, Constructable> = {};
+
+	// hooks
+	private readonly hooks: Hooks = { prePut: [], preUpdate: [], postLoad: [] };
 
 	/**
 	 * Get the table name
@@ -147,6 +153,22 @@ export class Metadata {
 	readonly getType = (attr: string) => Optional.of(this.types[attr]);
 
 	/**
+	 * Add a function execution to a lifecycle hook.
+	 *
+	 * @param hook the hook to add
+	 * @param fnName the function name to execute
+	 */
+	readonly addHook = (hook: keyof Hooks, fnName: string) => this.hooks[hook].push(fnName);
+
+	/**
+	 * Get all the functions registered for hook.
+	 *
+	 * @param hook the hook to get
+	 * @returns list of function names to execute
+	 */
+	readonly getHooks = (hook: keyof Hooks) => this.hooks[hook];
+
+	/**
 	 * Clone this metadata instance.
 	 */
 	readonly clone = () => {
@@ -159,6 +181,10 @@ export class Metadata {
 			}).elseUndefined();
 		Object.entries(this.attributes).forEach(attr => cloned.attributes[attr[0]] = { ...attr[1] });
 		Object.assign(cloned.types, this.types);
+
+		cloned.hooks.prePut = [...this.hooks.prePut];
+		cloned.hooks.preUpdate = [...this.hooks.preUpdate];
+		cloned.hooks.postLoad = [...this.hooks.postLoad];
 
 		return cloned;
 	};

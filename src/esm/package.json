@@ -1,6 +1,25 @@
 {
 	"name": "odynm",
-	"version": "1.0.0",
+	"version": "1.1.0",
+	"description": "ODynM - Strongly typed Object DynamoDB Mapper",
+	"author": {
+		"name": "2ChRisPY5",
+		"url": "https://github.com/2ChRisPY5"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/2ChRisPY5/odynm.git"
+	},
+	"keywords": [
+		"odynm",
+		"dynamodb",
+		"mapper"
+	],
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/2ChRisPY5/odynm/issues"
+	},
+	"homepage": "https://github.com/2ChRisPY5/odynm#readme",
 	"main": "./cjs/index.cjs",
 	"module": "./esm/index.mjs",
 	"types": "./esm/index.d.mts",

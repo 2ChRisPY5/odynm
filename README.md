@@ -12,6 +12,7 @@ It is implemented from scratch using latest JS features and without any dependen
 - Class inheritance
 - Repository - easy `get`, `getMany`, `put`, `putAll`, `query`, `scan`, `delete`, `deleteAll`, `update` and `updateAll` operations
 - Supports all conditions and conditional functions provided by DynamoDB
+- Lifecycle hooks `PrePut`, `PreUpdate` and `PostLoad`
 - Built for CJS and ESM
 - Full type-safe
 - Does not need "reflect-metadata"
@@ -80,7 +81,7 @@ You can define for both keys how they are called in DynamoDB and what type they 
 
 #### Define an item
 ```typescript
-import { Item, Attribute } from 'odynm';
+import { Item, Attribute, PrePut, PreUpdate, PostLoad } from 'odynm';
 
 @Item({
 	table: table,
@@ -116,8 +117,44 @@ export class Author {
 	// constructor must have exact one parameter
 	@Attribute({ type: Set })
 	publications?: Set<string>;
+
+	// You dont need to define a constructor for your items but if you do
+	// all parameters must be optional because they won't be used by ODynM
+	constructor(input?: Author) {
+		...
+	}
+
+	// you can also define lifecycle hooks (supported multiple times)
+	// function names can be choosen freely
+	// only works on class instances NOT object-literals!
+	@PrePut
+	private readonly prePut = () => {
+		...
+	};
+
+	@PreUpdate
+	private readonly preUpdate = () => {
+		...
+	};
+
+	@PostLoad
+	private readonly postLiad = () => {
+		...
+	};
 }
 ```
+You can also use custom classes as attribute types but you have to implement a constructor with exactly one argument. The argument's type is the class itself. For example:
+```typescript
+export class Nested {
+	attribute_1: string;
+	attribute_2: string;
+
+	constructor(input: Nested) {
+		...
+	}
+}
+```
+
 There is one more configuration which can be done using `@Attribute`. You can set `partitionKey` and/or `sortKey` to `true`. See following example for usage.
 ```typescript
 @Attribute({ partitionKey: true })
