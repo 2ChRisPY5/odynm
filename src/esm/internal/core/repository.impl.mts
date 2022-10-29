@@ -27,7 +27,7 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	private readonly mapper: ItemMapper<T>;
 	private readonly metadata: Metadata;
 
-	constructor(type: T, private readonly client: DynamoDBDocumentClient) {
+	constructor(private readonly type: T, private readonly client: DynamoDBDocumentClient) {
 		this.metadata = MetadataService.getInstance().getMetadata(type.prototype);
 		this.mapper = new ItemMapper(type);
 
@@ -68,10 +68,12 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	 * @see Repository#put
 	 */
 	readonly put = async (item: T) => {
-		applyHooks(this.metadata.getHooks('prePut'), item);
+		const instance = this.toClassInstance(item);
+
+		applyHooks(this.metadata.getHooks('prePut'), instance);
 		await this.client.send(new PutCommand({
 			TableName: this.metadata.getTable(),
-			Item: this.mapper.serialize(item)
+			Item: this.mapper.serialize(instance)
 		}));
 	};
 
@@ -83,9 +85,10 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 		if(!items.length) {
 			return;
 		}
+		const instances = items.map(it => this.toClassInstance(it));
 
-		applyHooks(this.metadata.getHooks('prePut'), ...items);
-		await Promise.all(partition(25, ...items.map(it => this.mapper.serialize(it)))
+		applyHooks(this.metadata.getHooks('prePut'), ...instances);
+		await Promise.all(partition(25, ...instances.map(it => this.mapper.serialize(it)))
 			.map(batch => this.batchItems(batch, Item => {
 				return { PutRequest: { Item } };
 			}, result => result.PutRequest!.Item)));
@@ -185,11 +188,12 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	 * @see Repository#update
 	 */
 	readonly update = async (item: T) => {
-		applyHooks(this.metadata.getHooks('preUpdate'), item);
+		const instance = this.toClassInstance(item);
+		applyHooks(this.metadata.getHooks('preUpdate'), instance);
 
 		const input: UpdateCommandInput = {
 			TableName: this.metadata.getTable(),
-			Key: this.buildGetKey(item),
+			Key: this.buildGetKey(instance),
 			ExpressionAttributeNames: {},
 			ExpressionAttributeValues: {}
 		};
@@ -198,7 +202,7 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 		const actions: string[] = [];
 
 		// add REMOVE statement
-		const toRemove = Object.entries(item)
+		const toRemove = Object.entries(instance)
 			.filter(e => e[1] == null)
 			.map(e => [e[0], this.metadata.getAttribute(e[0])] as [string, Optional<Attribute>])
 			.filter(attr => attr[1].isPresent())
@@ -210,7 +214,7 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 		}, 'REMOVE', toRemove).ifPresent(a => actions.push(a));
 
 		// add SET statement
-		const toSet = Object.entries(this.mapper.serialize(item))
+		const toSet = Object.entries(this.mapper.serialize(instance))
 			.filter(e => !this.keyAttributes.has(e[0]) && !this.templateAttributes.has(e[0]));
 		this.buildUpdateExpression(e => {
 			this.addExpressionName(e[0], ++idx, input);
@@ -504,6 +508,16 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 			.map(unp => this.batchItems(unp, reqCreate, resultMapper))
 			.orElseGet(() => Promise.resolve());
 	};
+
+	/**
+	 * Create a new class instance with assigned values from given item. Or item if already an instance.
+	 *
+	 * @param item the partial item
+	 * @returns the created class instance
+	 */
+	private readonly toClassInstance = (item: Partial<T>) => (Object.getPrototypeOf(item) === Object.prototype
+		? Object.assign(new this.type(), item)
+		: item) as InstanceType<T>;
 }
 
 /**

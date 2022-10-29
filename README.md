@@ -126,7 +126,6 @@ export class Author {
 
 	// you can also define lifecycle hooks (supported multiple times)
 	// function names can be choosen freely
-	// only works on class instances NOT object-literals!
 	@PrePut
 	private readonly prePut = () => {
 		...
