@@ -3,6 +3,7 @@ import { Value } from '@aws-sdk/smithy-client';
 
 /**
  * Update expression builder
+ * @internal
  */
 export class UpdateBuilder {
 	private index = 0;
