@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ConditionBuilder } from './condition.builder.mjs';
+import { UpdateBuilder } from './update.builder.mjs';
 
 // @internal
 export type Constructable = { new (value?: any): object }
@@ -12,9 +13,18 @@ export type Comparator = '=' | '<>' | '<' | '<=' | '>' | '>=';
 export type ConditionBuilderFunc = (builder: ConditionBuilder) => void;
 // @internal
 export type ConditionFunc = (value: Value) => ConditionBuilderFunc;
+// @internal
+export type UpdateBuilderFn = (builder: UpdateBuilder) => void;
+
 
 // construct a type of all properties which can also have a condition builder function
 // @internal
-export type Specification<T> = {
+export type QuerySpecification<T> = {
 	[K in keyof T]?: T[K] | ConditionBuilderFunc;
 }
+
+// construct a type of all properties which can also have a update builder function
+// @internal
+export type UpdateSpecification<T> = {
+	[K in keyof T]?: T[K] | UpdateBuilderFn;
+};

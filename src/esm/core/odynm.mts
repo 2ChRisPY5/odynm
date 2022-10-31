@@ -30,7 +30,7 @@ export class ODynM {
 	 * @returns the repository instance
 	 * @throws if type is not annotated with \@Item
 	 */
-	readonly getRepository = <T extends Constructable>(type: T): Repository<InstanceType<T>> => {
+	readonly getRepository = <T extends Constructable>(type: T): Repository<T> => {
 		if(!this.repositories.has(type)) {
 			// perform check
 			if(!MetadataService.getInstance().hasMetadata(type)) {

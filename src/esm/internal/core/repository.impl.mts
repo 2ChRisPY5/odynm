@@ -6,8 +6,10 @@ import { beginsWith, contains, equal } from '../../core/conditions.mjs';
 import { IndexConfig, QueryConfig, Repository } from '../../core/repository.mjs';
 import { Optional } from '../../utils/optional.mjs';
 import { ConditionBuilder } from '../condition.builder.mjs';
-import { Attribute, KeyDef, Metadata } from '../metadata.mjs';
-import { ConditionBuilderFunc, ConditionFunc, Constructable, Specification, Value } from '../types.mjs';
+import { KeyDef, Metadata } from '../metadata.mjs';
+import { ConditionBuilderFunc, ConditionFunc, Constructable, QuerySpecification, Value, UpdateSpecification,
+	UpdateBuilderFn } from '../types.mjs';
+import { UpdateBuilder } from '../update.builder.mjs';
 import { mergeTemplates, partition, TEMPLATES } from '../utils.mjs';
 import { ItemMapper } from './item-mapper.mjs';
 import { MetadataService } from './metadata.service.mjs';
@@ -45,7 +47,7 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	/**
 	 * @see Repository#get
 	 */
-	readonly get = async (key: Partial<T>) => this.client.send(new GetCommand({
+	readonly get = async (key: Partial<InstanceType<T>>) => this.client.send(new GetCommand({
 		TableName: this.metadata.getTable(),
 		Key: this.buildGetKey(key)
 	})).then(out => Optional.of(out.Item).map(this.mapper.deserialize));
@@ -53,7 +55,7 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	/**
 	 * @see Repository#getMany
 	 */
-	readonly getMany = async (...keys: Partial<T>[]) => {
+	readonly getMany = async (...keys: Partial<InstanceType<T>>[]) => {
 		// just abort
 		if(!keys.length) {
 			return [];
@@ -67,7 +69,7 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	/**
 	 * @see Repository#put
 	 */
-	readonly put = async (item: T) => {
+	readonly put = async (item: InstanceType<T>) => {
 		const instance = this.toClassInstance(item);
 
 		applyHooks(this.metadata.getHooks('prePut'), instance);
@@ -80,7 +82,7 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	/**
 	 * @see Repository#putAll
 	 */
-	readonly putAll = async (...items: T[]) => {
+	readonly putAll = async (...items: InstanceType<T>[]) => {
 		// just abort if nothing provided
 		if(!items.length) {
 			return;
@@ -97,7 +99,7 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	/**
 	 * @see Repository#query
 	 */
-	readonly query = async (spec: Specification<T>, config: QueryConfig = { sortKeyComparator: beginsWith }) => {
+	readonly query = async (spec: QuerySpecification<InstanceType<T>>, config: QueryConfig = { sortKeyComparator: beginsWith }) => {
 		const index = Optional.of(config.index);
 
 		// add partitionKey check
@@ -135,7 +137,7 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	/**
 	 * @see Repository#scan
 	 */
-	readonly scan = async (spec: Specification<T> = {}, config: IndexConfig = {}) => {
+	readonly scan = async (spec: QuerySpecification<InstanceType<T>> = {}, config: IndexConfig = {}) => {
 		const builder = new ConditionBuilder(-1);
 		const index = Optional.of(config.index);
 
@@ -163,7 +165,7 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	/**
 	 * @see Repository#delete
 	 */
-	readonly delete = async (key: Partial<T>) => {
+	readonly delete = async (key: Partial<InstanceType<T>>) => {
 		await this.client.send(new DeleteCommand({
 			TableName: this.metadata.getTable(),
 			Key: this.buildGetKey(key)
@@ -173,7 +175,7 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	/**
 	 * @see Repository#deleteAll
 	 */
-	readonly deleteAll = async (...keys: Partial<T>[]) => {
+	readonly deleteAll = async (...keys: Partial<InstanceType<T>>[]) => {
 		if(!keys.length) {
 			return;
 		}
@@ -187,73 +189,83 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	/**
 	 * @see Repository#update
 	 */
-	readonly update = async (item: T) => {
-		const instance = this.toClassInstance(item);
+	readonly update = async (spec: UpdateSpecification<InstanceType<T>>) => {
+		// separate plain values from functions
+		let instance: any;
+		const functions: Record<string, UpdateBuilderFn> = {};
+
+		// if object literal; iterate attributes and split properties by type
+		const isLiteral = Object.getPrototypeOf(spec) === Object.prototype;
+		if(isLiteral) {
+			instance = new this.type();
+
+			Object.entries(spec).forEach(attr => {
+				if(typeof attr[1] === 'function') {
+					functions[attr[0]] = attr[1] as UpdateBuilderFn;
+				} else {
+					instance[attr[0]] = attr[1];
+				}
+			});
+		} else {
+			instance = spec;
+		}
+
+		// apply hooks to instance
 		applyHooks(this.metadata.getHooks('preUpdate'), instance);
 
-		const input: UpdateCommandInput = {
+		// iterate attributes
+		const builder = new UpdateBuilder();
+		this.metadata.getAttributes().forEach(attr => {
+			const config = this.metadata.getAttribute(attr).get();
+
+			// custom function has always priority
+			const fn = Optional.of(functions[attr]);
+			fn.ifPresent(updateFn => {
+				builder.addAttribute(config.name ?? attr);
+				updateFn(builder);
+			});
+
+			// else take plain value
+			fn.ifNotPresent(() => {
+				Optional.of(instance[attr])
+					.map(val => Optional.of(config.type)
+						.map(t => new t(val))
+						.orElse(val))
+					.ifPresent(val => {
+						builder.addAttribute(config.name ?? attr);
+						builder.addValue(val);
+						builder.addSet(`${builder.attributeExpression} = ${builder.valueExpression}`);
+					});
+			});
+
+			builder.nextIndex();
+		});
+
+		// send command
+		const { Attributes } = await this.client.send(new UpdateCommand({
 			TableName: this.metadata.getTable(),
 			Key: this.buildGetKey(instance),
-			ExpressionAttributeNames: {},
-			ExpressionAttributeValues: {}
-		};
+			...builder.build()
+		}));
 
-		let idx = -1;
-		const actions: string[] = [];
-
-		// add REMOVE statement
-		const toRemove = Object.entries(instance)
-			.filter(e => e[1] == null)
-			.map(e => [e[0], this.metadata.getAttribute(e[0])] as [string, Optional<Attribute>])
-			.filter(attr => attr[1].isPresent())
-			.map(attr => [attr[1].get().name ?? attr[0], null] as [string, unknown]);
-
-		this.buildUpdateExpression(e => {
-			this.addExpressionName(e[0], ++idx, input);
-			return `#a${idx}`;
-		}, 'REMOVE', toRemove).ifPresent(a => actions.push(a));
-
-		// add SET statement
-		const toSet = Object.entries(this.mapper.serialize(instance))
-			.filter(e => !this.keyAttributes.has(e[0]) && !this.templateAttributes.has(e[0]));
-		this.buildUpdateExpression(e => {
-			this.addExpressionName(e[0], ++idx, input);
-			input.ExpressionAttributeValues![`:v${idx}`] = e[1];
-			return `#a${idx} = :v${idx}`;
-		}, 'SET', toSet).ifPresent(a => actions.push(a));
-
-		// abort if nothing is updated
-		if(!actions.length) {
-			return;
-		}
-
-		// execute
-		input.UpdateExpression = actions.join(' ');
-		if(!Object.keys(input.ExpressionAttributeValues!).length) {
-			input.ExpressionAttributeValues = undefined;
-		}
-		await this.client.send(new UpdateCommand(input));
+		// deserialize update and return merged state
+		const converted = this.mapper.deserialize(Attributes!);
+		return Object.assign(instance, converted);
 	};
 
 	/**
 	 * @see Repository#updateAll
 	 */
-	readonly updateAll = async (...items: T[]) => {
-		if(!items.length) {
-			return;
+	readonly updateAll = async (...specs: UpdateSpecification<InstanceType<T>>[]) => {
+		if(!specs.length) {
+			return [];
 		}
-		await Promise.all(items.map(it => this.update(it)));
+		return Promise.all(specs.map(s => this.update(s)));
 	};
 
 	// ============================================================
 	// ====================== private stuff =======================
 	// ============================================================
-	private readonly buildUpdateExpression = (mapper: (e: [string, unknown]) => string, operator: 'REMOVE' | 'SET',
-		attributes: [string, unknown][]) =>
-		Optional.of(attributes)
-			.filter(attrs => attrs.length > 0)
-			.map(attrs => `${operator} ${attrs.map(e => mapper(e)).join(', ')}`);
-
 	/**
 	 * Build the filter expression for attributes. Include all attributes which are not used in key expressions or
 	 * a condition was supplied by user.
@@ -439,7 +451,7 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	/**
 	 * Build the key object for DynamoDB GetCommand
 	 */
-	private readonly buildGetKey = (key: Partial<T>) => {
+	private readonly buildGetKey = (key: Partial<InstanceType<T>>) => {
 		// serialize object
 		const obj = this.mapper.serialize(key);
 

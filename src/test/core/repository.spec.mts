@@ -4,7 +4,7 @@ import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import test from 'ava';
 import { attributeExists, attributeNotExists, greaterThanOrEqual, attributeType, isIn, between,
 	isNull, nullOrUndefined, not, equal, lessThan } from '../../esm/core/conditions.mjs';
-import { Attribute, Item, ODynM, PostLoad, PrePut, PreUpdate } from '../../esm/index.mjs';
+import { Attribute, decrement, increment, Item, ODynM, PostLoad, PrePut, PreUpdate, remove } from '../../esm/index.mjs';
 
 // test declarations
 const table = 'projects';
@@ -165,10 +165,23 @@ test.serial('deleteAll', async ctx => {
 	ctx.pass();
 });
 
-test.serial('updateAll', async ctx => {
-	await REPO.updateAll({ name: 'PROJECT_B', version: 'Something', revision: 2, date: 1911  },
-		{ name: 'PROJECT_A', version: 'Initial', revision: 515, date: null });
-	ctx.pass();
+test.serial('update - withoutFunctions', async ctx => {
+	const project = new Project({ name: 'PROJECT_B', version: 'Something', revision: 2, date: 1911 });
+	ctx.deepEqual(await REPO.update(project), project);
+});
+
+test.serial('update - increment/decrement', async ctx => {
+	const project = new Project({ name: 'PROJECT_A', version: 'Initial', revision: 515 });
+	const updated = await REPO.update({ ...project, date: increment(10) });
+	ctx.is(updated.date, 1662541199);
+
+	const updated2 = await REPO.update({ ...project, date: decrement(20) });
+	ctx.is(updated2.date, 1662541179);
+});
+
+test.serial('update - remove', async ctx => {
+	const updated = await REPO.update({ name: 'PROJECT_A', version: 'Initial', revision: 515, date: remove });
+	ctx.is(updated.date, undefined);
 });
 
 test.serial('hooks', async ctx => {

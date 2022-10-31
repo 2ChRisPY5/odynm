@@ -2,6 +2,10 @@
 export { Table } from './core/types.mjs';
 export { Optional } from './utils/optional.mjs';
 
+// functions
+export * from './core/conditions.mjs';
+export * from './core/update.functions.mjs';
+
 // decorators
 export { Attribute } from './decorator/attribute.mjs';
 export { Item } from './decorator/item.mjs';

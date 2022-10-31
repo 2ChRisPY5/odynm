@@ -25,7 +25,7 @@ export class ItemMapper<T extends Constructable> {
 	 * @param value the item
 	 * @returns the serialized DynamoDB item
 	 */
-	readonly serialize = (value: InstanceType<T> | Partial<T>): Record<string, unknown> => {
+	readonly serialize = (value: InstanceType<T> | Partial<InstanceType<T>>): Record<string, unknown> => {
 		// initialize with partition key
 		const pk = this.metadata.getPartitionKey();
 		const converted: Record<string, unknown> = {
@@ -55,7 +55,7 @@ export class ItemMapper<T extends Constructable> {
 	 * @param value the DynamoDB item
 	 * @returns the instantiated class
 	 */
-	readonly deserialize = (value: Record<string, unknown>, pk?: KeyDef, sk?: Optional<KeyDef>): T => {
+	readonly deserialize = (value: Record<string, unknown>, pk?: KeyDef, sk?: Optional<KeyDef>): InstanceType<T> => {
 		const created = new this.type() as any;
 
 		// parse partitionKey
