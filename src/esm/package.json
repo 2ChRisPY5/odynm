@@ -1,6 +1,6 @@
 {
 	"name": "odynm",
-	"version": "1.2.1",
+	"version": "1.2.2",
 	"description": "ODynM - Strongly typed Object DynamoDB Mapper",
 	"author": {
 		"name": "2ChRisPY5",

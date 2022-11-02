@@ -426,6 +426,11 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 
 			// if no value or condition was supplied; abort
 			if(!spec[match[1]] || typeof spec[match[1]] === 'function') {
+				// if first template and does not start at the beginning
+				// just use static part
+				if(idx < 1 && match.index! > 0) {
+					substituted = sortKey.substring(start, match.index);
+				}
 				break;
 			}
 

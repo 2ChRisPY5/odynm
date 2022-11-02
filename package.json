@@ -4,8 +4,7 @@
 	"type": "module",
 	"scripts": {
 		"test": "tsc && ava",
-		"build": "tsc && tsc --project tsconfig.cjs.json",
-		"postbuild": "node rewrite-cjs.mjs"
+		"build": "tsc && tsc --project tsconfig.cjs.json && node rewrite-cjs.mjs"
 	},
 	"devDependencies": {
 		"@ava/typescript": "^3.0.1",
