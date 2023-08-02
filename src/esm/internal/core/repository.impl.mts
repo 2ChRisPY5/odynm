@@ -273,7 +273,7 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	private readonly getAttributeFilter = (spec: NativeSpec, builder: ConditionBuilder, templates: Set<string>) =>
 		this.metadata.getAttributes()
 			.filter(attr => spec[attr] != null)
-			.filter(attr => !templates || typeof spec[attr] === 'function')
+			.filter(attr => !templates.has(attr) || typeof spec[attr] === 'function')
 			.forEach(attr => {
 				const valFn = spec[attr];
 				builder.nextIndex();

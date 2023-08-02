@@ -88,6 +88,11 @@ test.serial('query - onlyPartitionKey', async ctx => {
 	ctx.is(items.length, 2);
 });
 
+test.serial('query - withPlainValue', async ctx => {
+	const items = await REPO.query({ name: 'PROJECT_A', date: 1662541189 });
+	ctx.is(items.length, 1);
+});
+
 test.serial('query - withSortKey', async ctx => {
 	const items = await REPO.query({ name: 'PROJECT_A', version: 'Init' });
 	ctx.is(items.length, 2);
