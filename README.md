@@ -8,7 +8,6 @@ It is implemented from scratch using latest JS features and without any dependen
 
 ## Features
 - Only supports the AWS Client v3
-- LSI and GSI **(only experimental!)**
 - Class inheritance
 - Repository - easy `get`, `getMany`, `put`, `putAll`, `query`, `scan`, `delete`, `deleteAll`, `update` and `updateAll` operations
 - Supports all conditions and conditional functions provided by DynamoDB
