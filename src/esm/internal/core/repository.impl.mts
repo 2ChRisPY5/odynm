@@ -145,6 +145,7 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	readonly scan = async (spec: QuerySpecification<InstanceType<T>> = {}, config: IndexConfig = {}) => {
 		const builder = new ConditionBuilder(-1);
 		const index = Optional.of(config.index);
+		let sk = Optional.of<KeyDef>();
 
 		// partitionKey
 		const pk = index.map(this.metadata.getIndexPk)
@@ -152,9 +153,17 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 		this.buildScanKeyFilter(pk, spec as NativeSpec, builder);
 
 		// sortKey
-		const sk = index.flatMap(this.metadata.getIndexSk)
-			.or(this.metadata.getSortKey);
-		sk.ifPresent(sk => this.buildScanKeyFilter(sk, spec as NativeSpec, builder));
+		// handle index key first
+		index.flatMap(this.metadata.getIndexSk).ifPresent(isk => {
+			this.buildScanKeyFilter(isk, spec as NativeSpec, builder);
+			sk = Optional.of(isk);
+		});
+
+		// handly default sk only if no index is used
+		index.ifNotPresent(() => this.metadata.getSortKey().ifPresent(dsk => {
+			this.buildScanKeyFilter(dsk, spec as NativeSpec, builder);
+			sk = Optional.of(dsk);
+		}));
 
 		// add attributes as filter expression
 		this.getAttributeFilter(spec as NativeSpec, builder, mergeTemplates(pk, sk));
