@@ -4,7 +4,7 @@ import { Optional } from '../utils/optional.mjs';
 export type IndexConfig = {
 	index?: string;
 }
-export type QueryConfig = IndexConfig & { sortKeyComparator: ConditionFunc };
+export type QueryConfig = IndexConfig & { sortKeyComparator?: ConditionFunc };
 
 /**
  * Interface for performing basic DynamoDB CRUD operations.

@@ -99,9 +99,11 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	/**
 	 * @see Repository#query
 	 */
-	readonly query = async (spec: QuerySpecification<InstanceType<T>>, config: QueryConfig = { sortKeyComparator: beginsWith }) => {
+	readonly query = async (spec: QuerySpecification<InstanceType<T>>, config: QueryConfig = {}) => {
 		const index = Optional.of(config.index);
 		let sk = Optional.of<KeyDef>();
+		const skComparator = Optional.of(config.sortKeyComparator)
+			.orElse(beginsWith);
 
 		// add partitionKey check
 		const keyCondition = new ConditionBuilder();
@@ -113,13 +115,13 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 		// add sortKey check
 		// handle index mapping
 		index.flatMap(this.metadata.getIndexSk).ifPresent(isk => {
-			this.addSortKeyQuery(isk, spec, keyCondition, config.sortKeyComparator);
+			this.addSortKeyQuery(isk, spec, keyCondition, skComparator);
 			sk = Optional.of(isk);
 		});
 
-		// handle default key mapping
+		// only add default sk mapping if no index is used
 		index.ifNotPresent(() => this.metadata.getSortKey().ifPresent(dsk => {
-			this.addSortKeyQuery(dsk, spec, keyCondition, config.sortKeyComparator);
+			this.addSortKeyQuery(dsk, spec, keyCondition, skComparator);
 			sk = Optional.of(dsk);
 		}));
 
