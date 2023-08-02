@@ -4,8 +4,8 @@ import { KeyDefinition } from '../../core/types.mjs';
 import { Optional } from '../../utils/optional.mjs';
 import { KeyDef, Metadata } from '../metadata.mjs';
 import { Constructable } from '../types.mjs';
-import { MetadataService } from './metadata.service.mjs';
 import { mergeTemplates, STATIC_PARTS, TEMPLATES } from '../utils.mjs';
+import { MetadataService } from './metadata.service.mjs';
 
 /**
  * Implementation for mapping DynamoDB result to type and vice-versa.
@@ -14,9 +14,13 @@ import { mergeTemplates, STATIC_PARTS, TEMPLATES } from '../utils.mjs';
 export class ItemMapper<T extends Constructable> {
 	// metadata
 	private readonly metadata: Metadata;
+	private readonly pk: KeyDef;
+	private readonly sk: Optional<KeyDef>;
 
 	constructor(private readonly type: T) {
 		this.metadata = MetadataService.getInstance().getMetadata(type.prototype);
+		this.pk = this.metadata.getPartitionKey();
+		this.sk = this.metadata.getSortKey();
 	}
 
 	/**
@@ -27,13 +31,12 @@ export class ItemMapper<T extends Constructable> {
 	 */
 	readonly serialize = (value: InstanceType<T> | Partial<InstanceType<T>>): Record<string, unknown> => {
 		// initialize with partition key
-		const pk = this.metadata.getPartitionKey();
 		const converted: Record<string, unknown> = {
-			[pk.name]: this.substituteKey(value, pk)
+			[this.pk.name]: this.substituteKey(value, this.pk)
 		};
 
 		// check if sortKey is configured
-		this.metadata.getSortKey().ifPresent(sk => converted[sk.name] = this.substituteKey(value, sk));
+		this.sk.ifPresent(sk => converted[sk.name] = this.substituteKey(value, sk));
 
 		// write attributes to object
 		this.metadata.getAttributes().forEach(attr => {
@@ -55,19 +58,17 @@ export class ItemMapper<T extends Constructable> {
 	 * @param value the DynamoDB item
 	 * @returns the instantiated class
 	 */
-	readonly deserialize = (value: Record<string, unknown>, pk?: KeyDef, sk?: Optional<KeyDef>): InstanceType<T> => {
+	readonly deserialize = (value: Record<string, unknown>): InstanceType<T> => {
 		const created = new this.type() as any;
 
 		// parse partitionKey
-		const pkDef = pk ?? this.metadata.getPartitionKey();
-		this.deserializeKey(pkDef, value, created);
+		this.deserializeKey(this.pk, value, created);
 
 		// parse sortKey
-		const skDef = sk ?? this.metadata.getSortKey();
-		skDef.ifPresent(def => this.deserializeKey(def, value, created));
+		this.sk.ifPresent(def => this.deserializeKey(def, value, created));
 
 		// get templates
-		const templates = mergeTemplates(pkDef, skDef);
+		const templates = mergeTemplates(this.pk, this.sk);
 
 		// write attributes to class
 		this.metadata.getAttributes()

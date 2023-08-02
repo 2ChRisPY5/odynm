@@ -280,7 +280,9 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	// ============================================================
 	// ====================== private stuff =======================
 	// ============================================================
-
+	/**
+	 * Conveniant function to add sort key condition to query.
+	 */
 	private readonly addSortKeyQuery = (sk: KeyDef, spec: QuerySpecification<InstanceType<T>>, builder: ConditionBuilder,
 		comparator: ConditionFunc) => this.substituteSk(spec, sk)
 		.ifPresent(val => {
@@ -387,7 +389,7 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 		const { Items, LastEvaluatedKey } = await this.client.send(new ScanCommand(input));
 
 		const scanned = Optional.of(Items)
-			.map(items => items.map(it => this.mapper.deserialize(it, pk, sk)))
+			.map(items => items.map(it => this.mapper.deserialize(it)))
 			.orElse([]);
 
 		if(LastEvaluatedKey) {
@@ -408,7 +410,7 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 		const { Items, LastEvaluatedKey } = await this.client.send(new QueryCommand(input));
 
 		const queried = Optional.of(Items)
-			.map(items => items.map(it => this.mapper.deserialize(it, pk, sk)))
+			.map(items => items.map(it => this.mapper.deserialize(it)))
 			.orElse([]);
 
 		if(LastEvaluatedKey) {
