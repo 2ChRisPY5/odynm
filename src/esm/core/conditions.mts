@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { Value } from '@aws-sdk/smithy-client';
 import { ConditionBuilder } from '../internal/condition.builder.mjs';
-import { Comparator, ConditionBuilderFunc, ConditionFunc } from '../internal/types.mjs';
+import { Comparator, ConditionBuilderFunc, ConditionFunc } from './types.mjs';
 
-type DynamoDBType = 'S' | 'SS' | 'M' | 'L' | 'N' | 'NS' | 'BOOL' | 'B' | 'BS' | 'NULL';
+export type DynamoDBType = 'S' | 'SS' | 'M' | 'L' | 'N' | 'NS' | 'BOOL' | 'B' | 'BS' | 'NULL';
 
 /**
  * Wrap given conditions into braces with AND.

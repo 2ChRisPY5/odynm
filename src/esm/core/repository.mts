@@ -1,5 +1,6 @@
-import { ConditionFunc, Constructable, QuerySpecification, UpdateSpecification } from '../internal/types.mjs';
+import { Constructable } from '../internal/types.mjs';
 import { Optional } from '../utils/optional.mjs';
+import { ConditionFunc, QuerySpecification, UpdateSpecification } from './types.mjs';
 
 export type IndexConfig = {
 	index?: string;

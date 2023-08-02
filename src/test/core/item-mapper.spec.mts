@@ -3,8 +3,6 @@ import test from 'ava';
 import { Type } from '../../esm/decorator/type.mjs';
 import { Attribute, Item } from '../../esm/index.mjs';
 import { ItemMapper } from '../../esm/internal/core/item-mapper.mjs';
-import { KeyDef } from '../../esm/internal/metadata.mjs';
-import { Optional } from '../../esm/utils/optional.mjs';
 
 // declarations
 @Item({
@@ -104,18 +102,12 @@ test('deserialize - LSI', ctx => {
 	expected.version = 'Something cool';
 	expected.users = users;
 
-	const pk: KeyDef = {
-		name: 'pk', type: String, expression: '{{name}}', templateAttributes: new Set(['name'])
-	};
-	const sk = Optional.of<KeyDef>({
-		name: 'sk2', type: String, expression: 'VERSION#{{version}}', templateAttributes: new Set(['version'])
-	});
 	ctx.deepEqual(MAPPER.deserialize({
 		pk: 'TEST_C',
 		sk2: 'VERSION#Something cool',
 		revision: 1846,
 		people: users
-	}, pk, sk), expected);
+	}), expected);
 });
 
 test('deserialize - GSI', ctx => {
@@ -125,16 +117,10 @@ test('deserialize - GSI', ctx => {
 	expected.version = 'Something cool';
 	expected.users = users;
 
-	const pk: KeyDef = {
-		name: 'pk3', type: Number, expression: '{{revision}}', templateAttributes: new Set(['revision'])
-	};
-	const sk = Optional.of<KeyDef>({
-		name: 'sk3', type: String, expression: '{{name}}', templateAttributes: new Set(['name'])
-	});
 	ctx.deepEqual(MAPPER.deserialize({
 		pk3: 1846,
 		sk3: 'TEST_C',
 		version: 'Something cool',
 		people: users
-	}, pk, sk), expected);
+	}), expected);
 });

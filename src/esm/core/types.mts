@@ -1,3 +1,6 @@
+import { ConditionBuilder } from '../internal/condition.builder.mjs';
+import { UpdateBuilder } from '../internal/update.builder.mjs';
+
 /**
  * Used when configuring partition/sort key of table in {@link Item}.
  * @see Table
@@ -50,3 +53,19 @@ export type Table = {
 		sortKey?: string | KeyDefinition
 	}>;
 }
+
+export type Comparator = '=' | '<>' | '<' | '<=' | '>' | '>=';
+export type Value = string | number | boolean | null;
+export type ConditionBuilderFunc = (builder: ConditionBuilder) => void;
+export type UpdateBuilderFn = (builder: UpdateBuilder) => void;
+export type ConditionFunc = (value: Value) => ConditionBuilderFunc;
+
+// construct a type of all properties which can also have a condition builder function
+export type QuerySpecification<T> = {
+	[K in keyof T]?: T[K] | ConditionBuilderFunc;
+}
+
+// construct a type of all properties which can also have a update builder function
+export type UpdateSpecification<T> = {
+	[K in keyof T]?: T[K] | UpdateBuilderFn;
+};

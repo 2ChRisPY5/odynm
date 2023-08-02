@@ -1,17 +1,14 @@
 // public types
-export { Table } from './core/types.mjs';
-export { Optional } from './utils/optional.mjs';
-
-// functions
 export * from './core/conditions.mjs';
+export * from './core/odynm.mjs';
+export * from './core/repository.mjs';
+export * from './core/types.mjs';
 export * from './core/update.functions.mjs';
-
+export * from './decorator/attribute.mjs';
+export * from './decorator/hooks.mjs';
 // decorators
-export { Attribute } from './decorator/attribute.mjs';
-export { Item } from './decorator/item.mjs';
-export { Type } from './decorator/type.mjs';
-export { PostLoad, PrePut, PreUpdate } from './decorator/hooks.mjs';
+export * from './decorator/item.mjs';
+export * from './decorator/type.mjs';
+export * from './utils/optional.mjs';
 
-// main entry point
-export { ODynM } from './core/odynm.mjs';
-export { Repository } from './core/repository.mjs';
+

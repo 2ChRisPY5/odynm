@@ -5,7 +5,7 @@ import { Constructable } from '../internal/types.mjs';
 import { Optional } from '../utils/optional.mjs';
 import { Type } from './type.mjs';
 
-type AttributeConfig = {
+export type AttributeConfig = {
 	/** Defines the DynamoDB table column name */
 	name?: string;
 	/**

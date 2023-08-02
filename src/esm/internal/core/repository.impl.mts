@@ -6,13 +6,11 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { beginsWith, contains, equal } from '../../core/conditions.mjs';
 import { IndexConfig, QueryConfig, Repository } from '../../core/repository.mjs';
+import { ConditionBuilderFunc, ConditionFunc, QuerySpecification, UpdateBuilderFn, UpdateSpecification, Value } from '../../core/types.mjs';
 import { Optional } from '../../utils/optional.mjs';
 import { ConditionBuilder } from '../condition.builder.mjs';
 import { KeyDef, Metadata } from '../metadata.mjs';
-import {
-	ConditionBuilderFunc, ConditionFunc, Constructable, QuerySpecification, UpdateBuilderFn, UpdateSpecification,
-	Value
-} from '../types.mjs';
+import { Constructable } from '../types.mjs';
 import { UpdateBuilder } from '../update.builder.mjs';
 import { mergeTemplates, partition, TEMPLATES } from '../utils.mjs';
 import { ItemMapper } from './item-mapper.mjs';

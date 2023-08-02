@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { UpdateBuilderFn } from '../internal/types.mjs';
+import { UpdateBuilderFn } from './types.mjs';
 
 /**
  * Increment the attribute by the given value.

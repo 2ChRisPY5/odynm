@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unnecessary-type-constraint */
-type Nullable<T> = T | undefined | null;
+export type Nullable<T> = T | undefined | null;
 
 /**
  * Java-like optional implementation
