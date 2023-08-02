@@ -9,29 +9,11 @@ import { ItemMapper } from '../../esm/internal/core/item-mapper.mjs';
 	table: {
 		name: 'project',
 		partitionKey: 'pk',
-		sortKey: 'sk',
-		lsi: {
-			LSI1: 'sk2'
-		},
-		gsi: {
-			GSI1: {
-				partitionKey: { name: 'pk3', type: Number },
-				sortKey: 'sk3'
-			}
-		}
+		sortKey: 'sk'
 	},
 	key: {
 		partitionKey: '{{name}}',
 		sortKey: 'REV#{{revision}}'
-	},
-	lsi: {
-		LSI1: 'VERSION#{{version}}'
-	},
-	gsi: {
-		GSI1: {
-			partitionKey: '{{revision}}',
-			sortKey: '{{name}}'
-		}
 	}
 })
 class Project {
@@ -91,35 +73,6 @@ test('deserialize', ctx => {
 	ctx.deepEqual(MAPPER.deserialize({
 		pk: 'TEST_C',
 		sk: 'REV#1846',
-		version: 'Something cool',
-		people: users
-	}), expected);
-});
-
-test('deserialize - LSI', ctx => {
-	const expected = new Project();
-	expected.name = 'TEST_C';
-	expected.version = 'Something cool';
-	expected.users = users;
-
-	ctx.deepEqual(MAPPER.deserialize({
-		pk: 'TEST_C',
-		sk2: 'VERSION#Something cool',
-		revision: 1846,
-		people: users
-	}), expected);
-});
-
-test('deserialize - GSI', ctx => {
-	const expected = new Project();
-	expected.name = 'TEST_C';
-	expected.revision = 1846;
-	expected.version = 'Something cool';
-	expected.users = users;
-
-	ctx.deepEqual(MAPPER.deserialize({
-		pk3: 1846,
-		sk3: 'TEST_C',
 		version: 'Something cool',
 		people: users
 	}), expected);

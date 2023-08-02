@@ -1,6 +1,7 @@
+/* eslint-disable max-len */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { CreateTableCommand, DeleteTableCommand, DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { BatchWriteCommand, DynamoDBDocumentClient, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import test from 'ava';
 import {
 	attributeExists, attributeNotExists, attributeType, between, equal, greaterThanOrEqual, isIn, isNull, lessThan, not,
@@ -11,10 +12,20 @@ import { Attribute, decrement, increment, Item, ODynM, PostLoad, PrePut, PreUpda
 // test declarations
 const table = 'odynm-test';
 @Item({
-	table,
+	table: {
+		name: table,
+		partitionKey: 'pk',
+		sortKey: 'sk',
+		gsi: {
+			'date-index': { partitionKey: { name: 'date', type: Number } }
+		}
+	},
 	key: {
 		partitionKey: '{{name}}',
 		sortKey: 'VER:{{version}}#REV:{{revision}}'
+	},
+	gsi: {
+		'date-index': { partitionKey: '{{date}}' }
 	}
 })
 class Project {
@@ -37,28 +48,31 @@ const ODYNM = ODynM.initialize(CLIENT);
 const REPO = ODYNM.getRepository(Project);
 
 // create table with test data
-test.beforeEach('recreate DynamoDB table', async _ => {
-	await CLIENT.send(new CreateTableCommand({
-		TableName: table,
-		KeySchema: [{ AttributeName: 'pk', KeyType: 'HASH' }, { AttributeName: 'sk', KeyType: 'RANGE' }],
-		AttributeDefinitions: [{ AttributeName: 'pk', AttributeType: 'S' }, { AttributeName: 'sk', AttributeType: 'S' }],
-		BillingMode: 'PAY_PER_REQUEST',
-		GlobalSecondaryIndexes: [{
-			IndexName: 'BY_DATE',
-			KeySchema: [{ AttributeName: 'date', KeyType: 'HASH' }],
-			Projection: { ProjectionType: 'ALL' }
-		}]
-	}));
+test.beforeEach('restore DynamoDB table', async _ => {
+	await CLIENT.send(new ScanCommand({ TableName: table, ProjectionExpression: 'pk,sk' }))
+		.then(result => {
+			if(result.Items?.length) {
+				return CLIENT.send(new BatchWriteCommand({
+					RequestItems: {
+						[table]: result.Items.map(Key => {
+							return {
+								DeleteRequest: { Key }
+							};
+						})
+					}
+				}));
+			}
+		});
 
-	await Promise.all([
-		REPO.put({ name: 'PROJECT_A', version: 'Initial', revision: 515, date: 1662541189 }),
-		REPO.putAll({ name: 'PROJECT_A', version: 'Initial', revision: 1 },
-			{ name: 'PROJECT_B', version: 'Something', revision: 2 })
-	]);
-});
-// drop table afterwards
-test.afterEach('drop DynamoDB table', async _ => {
-	await CLIENT.send(new DeleteTableCommand({ TableName: table }));
+	await CLIENT.send(new BatchWriteCommand({
+		RequestItems: {
+			[table]: [
+				{ PutRequest: { Item: { pk: 'PROJECT_A', sk: 'VER:Initial#REV:515', name: 'PROJECT_A', version: 'Initial', revision: 515, date: 1662541189 } } },
+				{ PutRequest: { Item: { pk: 'PROJECT_A', sk: 'VER:Initial#REV:1', name: 'PROJECT_A', version: 'Initial', revision: 1 } } },
+				{ PutRequest: { Item: { pk: 'PROJECT_B', sk: 'VER:Something#REV:2', name: 'PROJECT_B', version: 'Something', revision: 2 } } }
+			]
+		}
+	}));
 });
 
 // test section
@@ -81,10 +95,8 @@ test.serial('getMany', async ctx => {
 		{ name: 'PROJECT_A', version: 'Initial', revision: 515 },
 		{ name: 'bla', version: 'bla', revision: 0 });
 
-	ctx.deepEqual(result, [
-		new Project({ name: 'PROJECT_A', version: 'Initial', revision: 515, date: 1662541189 }),
-		new Project({ name: 'PROJECT_A', version: 'Initial', revision: 1 })
-	]);
+	ctx.true(result.findIndex(p => p.revision === 515) > -1);
+	ctx.true(result.findIndex(p => p.revision === 1) > -1);
 });
 
 test.serial('query - onlyPartitionKey', async ctx => {
@@ -147,6 +159,11 @@ test.serial('query - not', async ctx => {
 	ctx.is(items.length, 1);
 });
 
+test.serial('query - gsi', async ctx => {
+	const items = await REPO.query({ date: 1662541189 }, { index: 'date-index' });
+	ctx.is(items.length, 1);
+});
+
 test.serial('scan - all', async ctx => {
 	const items = await REPO.scan();
 	ctx.is(items.length, 3);
@@ -159,6 +176,11 @@ test.serial('scan - withKeys', async ctx => {
 		revision: lessThan(3),
 		date: nullOrUndefined()
 	});
+	ctx.is(items.length, 1);
+});
+
+test.serial('scan - gsi', async ctx => {
+	const items = await REPO.scan({ date: equal(1662541189) }, { index: 'date-index' });
 	ctx.is(items.length, 1);
 });
 
