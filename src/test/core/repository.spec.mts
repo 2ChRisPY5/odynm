@@ -2,12 +2,14 @@
 import { CreateTableCommand, DeleteTableCommand, DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import test from 'ava';
-import { attributeExists, attributeNotExists, greaterThanOrEqual, attributeType, isIn, between,
-	isNull, nullOrUndefined, not, equal, lessThan } from '../../esm/core/conditions.mjs';
+import {
+	attributeExists, attributeNotExists, attributeType, between, equal, greaterThanOrEqual, isIn, isNull, lessThan, not,
+	nullOrUndefined
+} from '../../esm/core/conditions.mjs';
 import { Attribute, decrement, increment, Item, ODynM, PostLoad, PrePut, PreUpdate, remove } from '../../esm/index.mjs';
 
 // test declarations
-const table = 'projects';
+const table = 'odynm-test';
 @Item({
 	table,
 	key: {
@@ -30,10 +32,7 @@ class Project {
 	}
 }
 
-const CLIENT = DynamoDBDocumentClient.from(new DynamoDBClient({
-	endpoint: 'http://localhost:8000',
-	credentials: { accessKeyId: 'dummy', secretAccessKey: 'dummy' }
-}));
+const CLIENT = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const ODYNM = ODynM.initialize(CLIENT);
 const REPO = ODYNM.getRepository(Project);
 
@@ -43,7 +42,12 @@ test.beforeEach('recreate DynamoDB table', async _ => {
 		TableName: table,
 		KeySchema: [{ AttributeName: 'pk', KeyType: 'HASH' }, { AttributeName: 'sk', KeyType: 'RANGE' }],
 		AttributeDefinitions: [{ AttributeName: 'pk', AttributeType: 'S' }, { AttributeName: 'sk', AttributeType: 'S' }],
-		BillingMode: 'PAY_PER_REQUEST'
+		BillingMode: 'PAY_PER_REQUEST',
+		GlobalSecondaryIndexes: [{
+			IndexName: 'BY_DATE',
+			KeySchema: [{ AttributeName: 'date', KeyType: 'HASH' }],
+			Projection: { ProjectionType: 'ALL' }
+		}]
 	}));
 
 	await Promise.all([

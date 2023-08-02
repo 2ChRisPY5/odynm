@@ -1,14 +1,18 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { BatchGetCommand, BatchWriteCommand, DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand,
-	QueryCommand, QueryCommandInput, ScanCommand, ScanCommandInput, UpdateCommand, UpdateCommandInput} from '@aws-sdk/lib-dynamodb';
+import {
+	BatchGetCommand, BatchWriteCommand, DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand,
+	QueryCommand, QueryCommandInput, ScanCommand, ScanCommandInput, UpdateCommand, UpdateCommandInput
+} from '@aws-sdk/lib-dynamodb';
 import { beginsWith, contains, equal } from '../../core/conditions.mjs';
 import { IndexConfig, QueryConfig, Repository } from '../../core/repository.mjs';
 import { Optional } from '../../utils/optional.mjs';
 import { ConditionBuilder } from '../condition.builder.mjs';
 import { KeyDef, Metadata } from '../metadata.mjs';
-import { ConditionBuilderFunc, ConditionFunc, Constructable, QuerySpecification, Value, UpdateSpecification,
-	UpdateBuilderFn } from '../types.mjs';
+import {
+	ConditionBuilderFunc, ConditionFunc, Constructable, QuerySpecification, UpdateBuilderFn, UpdateSpecification,
+	Value
+} from '../types.mjs';
 import { UpdateBuilder } from '../update.builder.mjs';
 import { mergeTemplates, partition, TEMPLATES } from '../utils.mjs';
 import { ItemMapper } from './item-mapper.mjs';
@@ -25,7 +29,6 @@ type BatchWriteRequest = { PutRequest?: { Item: any }, DeleteRequest?: { Key: an
  */
 export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	private readonly keyAttributes: Set<string>;
-	private readonly templateAttributes: Set<string>;
 	private readonly mapper: ItemMapper<T>;
 	private readonly metadata: Metadata;
 
@@ -35,9 +38,6 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 
 		const pk = this.metadata.getPartitionKey();
 		const skDef = this.metadata.getSortKey();
-
-		// get attributes which are part of key
-		this.templateAttributes = mergeTemplates(pk, skDef);
 
 		// determine the key attribute names of table
 		this.keyAttributes = new Set([pk.name]);
@@ -101,6 +101,7 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	 */
 	readonly query = async (spec: QuerySpecification<InstanceType<T>>, config: QueryConfig = { sortKeyComparator: beginsWith }) => {
 		const index = Optional.of(config.index);
+		let sk = Optional.of<KeyDef>();
 
 		// add partitionKey check
 		const keyCondition = new ConditionBuilder();
@@ -110,15 +111,17 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 		equal(this.mapper.substituteKey(spec, pk))(keyCondition);
 
 		// add sortKey check
-		const sk = index.flatMap(this.metadata.getIndexSk)
-			.or(this.metadata.getSortKey);
-		sk.flatMap(val => this.substituteSk(spec, val))
-			.ifPresent(val => {
-				keyCondition.nextIndex();
-				keyCondition.addExpressionName(sk.get().name);
-				config.sortKeyComparator(val)(keyCondition);
-			});
+		// handle index mapping
+		index.flatMap(this.metadata.getIndexSk).ifPresent(isk => {
+			this.addSortKeyQuery(isk, spec, keyCondition, config.sortKeyComparator);
+			sk = Optional.of(isk);
+		});
 
+		// handle default key mapping
+		index.ifNotPresent(() => this.metadata.getSortKey().ifPresent(dsk => {
+			this.addSortKeyQuery(dsk, spec, keyCondition, config.sortKeyComparator);
+			sk = Optional.of(dsk);
+		}));
 
 		// add attributes as filter expression
 		const attributeCondition = new ConditionBuilder(keyCondition.index);
@@ -266,6 +269,15 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	// ============================================================
 	// ====================== private stuff =======================
 	// ============================================================
+
+	private readonly addSortKeyQuery = (sk: KeyDef, spec: QuerySpecification<InstanceType<T>>, builder: ConditionBuilder,
+		comparator: ConditionFunc) => this.substituteSk(spec, sk)
+		.ifPresent(val => {
+			builder.nextIndex();
+			builder.addExpressionName(sk.name);
+			comparator(val)(builder);
+		});
+
 	/**
 	 * Build the filter expression for attributes. Include all attributes which are not used in key expressions or
 	 * a condition was supplied by user.
