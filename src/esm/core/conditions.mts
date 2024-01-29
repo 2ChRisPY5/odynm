@@ -107,16 +107,8 @@ export const greaterThanOrEqual: ConditionFunc = value => builder => basicCompar
  * @param from the inclusive starting value
  * @param to the inclusive end value
  */
-export const between = (from: Value, to: Value): ConditionBuilderFunc => builder => {
-	// save for later
-	const start = builder.index;
-
-	builder.addExpressionValue(from);
-	builder.nextIndex();
-	builder.addExpressionValue(to);
-
-	builder.addConditions(`#a${start} BETWEEN :v${start} AND ${builder.valueExp}`);
-};
+export const between = (from: Value, to: Value): ConditionBuilderFunc => builder =>
+	builder.addConditions(`${builder.attributeExp} BETWEEN ${builder.addExpressionValue(from)} AND ${builder.addExpressionValue(to)}`);
 
 /**
  * Performs an 'IN' check with given values. If no values are provided nothing will be evaluated.
@@ -129,17 +121,8 @@ export const isIn = (...values: Value[]): ConditionBuilderFunc => builder => {
 		return;
 	}
 
-	// save for later because index gets increased
-	const attributeExp = builder.attributeExp;
-
-	// build operands
-	const operands = values.map(val => {
-		builder.nextIndex();
-		builder.addExpressionValue(val);
-		return builder.valueExp;
-	}).join(', ');
-
-	builder.addConditions(`${attributeExp} IN (${operands})`);
+	const operands = values.map(val => builder.addExpressionValue(val)).join(', ');
+	builder.addConditions(`${builder.attributeExp} IN (${operands})`);
 };
 
 /**
@@ -158,30 +141,24 @@ export const attributeNotExists = (): ConditionBuilderFunc => builder =>
  * Check if the DynamoDB type equals the given type.
  * @param type the DynamoDB type
  */
-export const attributeType = (type: DynamoDBType): ConditionBuilderFunc => builder => {
-	builder.addExpressionValue(type);
-	builder.addConditions(`attribute_type(${builder.attributeExp}, ${builder.valueExp})`);
-};
+export const attributeType = (type: DynamoDBType): ConditionBuilderFunc => builder =>
+	builder.addConditions(`attribute_type(${builder.attributeExp}, ${builder.addExpressionValue(type)})`);
 
 /**
  * Check if the attribute starts with the given string.
  *
  * @param value the value to check against
  */
-export const beginsWith: ConditionFunc = value => builder => {
-	builder.addExpressionValue(value);
-	builder.addConditions(`begins_with(${builder.attributeExp}, ${builder.valueExp})`);
-};
+export const beginsWith: ConditionFunc = value => builder =>
+	builder.addConditions(`begins_with(${builder.attributeExp}, ${builder.addExpressionValue(value)})`);
 
 /**
  * Check if a string or set (BS, NS, SS) contains the given value.
  *
  * @param value the value to check
  */
-export const contains: ConditionFunc = value => builder => {
-	builder.addExpressionValue(value);
-	builder.addConditions(`contains(${builder.attributeExp}, ${builder.valueExp})`);
-};
+export const contains: ConditionFunc = value => builder =>
+	builder.addConditions(`contains(${builder.attributeExp}, ${builder.addExpressionValue(value)})`);
 
 /**
  * Check if the size if the attribute matches the given comparator and operand.
@@ -189,15 +166,12 @@ export const contains: ConditionFunc = value => builder => {
  * @param comparator the comparator to use
  * @param value the operand to evaluate against
  */
-export const size = (comparator: Comparator, value: number): ConditionBuilderFunc => builder => {
-	builder.addExpressionValue(value);
-	builder.addConditions(`size(${builder.attributeExp}) ${comparator} ${builder.valueExp}`);
-};
+export const size = (comparator: Comparator, value: number): ConditionBuilderFunc => builder =>
+	builder.addConditions(`size(${builder.attributeExp}) ${comparator} ${builder.addExpressionValue(value)}`);
 
 // just a small helper
 const basicCompare = (builder: ConditionBuilder, value: Value, operator: string): void => {
-	builder.addExpressionValue(value);
-	builder.addConditions(`${builder.attributeExp} ${operator} ${builder.valueExp}`);
+	builder.addConditions(`${builder.attributeExp} ${operator} ${builder.addExpressionValue(value)}`);
 };
 
 const andOr = (builder: ConditionBuilder, andOr: 'AND' | 'OR', conditions: string[]) => {

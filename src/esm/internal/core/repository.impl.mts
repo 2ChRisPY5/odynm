@@ -12,7 +12,7 @@ import { ConditionBuilder } from '../condition.builder.mjs';
 import { KeyDef, Metadata } from '../metadata.mjs';
 import { Constructable } from '../types.mjs';
 import { UpdateBuilder } from '../update.builder.mjs';
-import { mergeTemplates, partition, TEMPLATES } from '../utils.mjs';
+import { TEMPLATES, mergeTemplates, partition } from '../utils.mjs';
 import { ItemMapper } from './item-mapper.mjs';
 import { MetadataService } from './metadata.service.mjs';
 
@@ -124,7 +124,7 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 		}));
 
 		// add attributes as filter expression
-		const attributeCondition = new ConditionBuilder(keyCondition.index);
+		const attributeCondition = new ConditionBuilder(keyCondition);
 		this.getAttributeFilter(spec as NativeSpec, attributeCondition, mergeTemplates(pk, sk));
 
 		// build the input and run it
@@ -133,7 +133,14 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 			IndexName: config.index,
 			KeyConditionExpression: keyCondition.fullCondition,
 			FilterExpression: attributeCondition.fullCondition,
-			...keyCondition.getMergedExpressions(attributeCondition)
+			ExpressionAttributeNames: {
+				...keyCondition.expressionNames,
+				...attributeCondition.expressionNames
+			},
+			ExpressionAttributeValues: {
+				...keyCondition.expressionValues,
+				...attributeCondition.expressionValues
+			}
 		}, pk, sk);
 	};
 
@@ -141,7 +148,7 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	 * @see Repository#scan
 	 */
 	readonly scan = async (spec: QuerySpecification<InstanceType<T>> = {}, config: IndexConfig = {}) => {
-		const builder = new ConditionBuilder(-1);
+		const builder = new ConditionBuilder();
 		const index = Optional.of(config.index);
 		let sk = Optional.of<KeyDef>();
 
@@ -170,7 +177,8 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 			TableName: this.metadata.getTable(),
 			IndexName: config.index,
 			FilterExpression: builder.fullCondition,
-			...builder.partialInput
+			ExpressionAttributeNames: builder.expressionNames,
+			ExpressionAttributeValues: builder.expressionValues
 		}, pk, sk);
 	};
 
@@ -207,8 +215,7 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 		const functions: Record<string, UpdateBuilderFn> = {};
 
 		// if object literal; iterate attributes and split properties by type
-		const isLiteral = Object.getPrototypeOf(spec) === Object.prototype;
-		if(isLiteral) {
+		if(Object.getPrototypeOf(spec) === Object.prototype) {
 			instance = new this.type();
 
 			Object.entries(spec).forEach(attr => {
@@ -284,7 +291,6 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 	private readonly addSortKeyQuery = (sk: KeyDef, spec: QuerySpecification<InstanceType<T>>, builder: ConditionBuilder,
 		comparator: ConditionFunc) => this.substituteSk(spec, sk)
 		.ifPresent(val => {
-			builder.nextIndex();
 			builder.addExpressionName(sk.name);
 			comparator(val)(builder);
 		});
@@ -299,7 +305,6 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 			.filter(attr => !templates.has(attr) || typeof spec[attr] === 'function')
 			.forEach(attr => {
 				const valFn = spec[attr];
-				builder.nextIndex();
 				builder.addExpressionName(this.metadata.getAttribute(attr).get().name ?? attr);
 				this.conditionOrDefault(valFn, builder, equal);
 			});
@@ -315,7 +320,6 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 
 		// check if static text only
 		if(!borders.length) {
-			builder.nextIndex();
 			builder.addExpressionName(keyName);
 			equal(keyDef.expression!)(builder);
 			return;
@@ -326,16 +330,15 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 		if(borders[0].index === 0) {
 			const valFn = spec[keyDef.expression!.substring(2, borders[1].index)];
 			if(valFn) {
-				builder.nextIndex();
 				builder.addExpressionName(keyName);
 				this.conditionOrDefault(valFn, builder, beginsWith);
-
-				// check if template only
-				if(borders.length === 2 && borders[1].index === keyDef.expression!.length - 1) {
-					return;
-				}
-				templateStart = 2;
 			}
+
+			// check if template only
+			if(borders.length === 2 && borders[1].index === keyDef.expression!.length - 2) {
+				return;
+			}
+			templateStart = 2;
 		}
 
 		// iterate rest of template borders
@@ -349,12 +352,10 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 
 			if(valFn && typeof valFn !== 'function') {
 				// concatenate static part and value
-				builder.nextIndex();
 				builder.addExpressionName(keyName);
 				this.containsOrBegins(posi, `${staticPart}${valFn}`, builder);
 			} else if (staticPart.length) {
 				// if no config was provided; just add the static part
-				builder.nextIndex();
 				builder.addExpressionName(keyName);
 				this.containsOrBegins(posi, staticPart, builder);
 			}
@@ -363,7 +364,6 @@ export class RepositoryImpl<T extends Constructable> implements Repository<T> {
 		// add static text at the end
 		const lastStart = borders[borders.length - 1].index! + 2;
 		if(lastStart < keyDef.expression!.length) {
-			builder.nextIndex();
 			builder.addExpressionName(keyName);
 			contains(keyDef.expression!.substring(lastStart))(builder);
 		}

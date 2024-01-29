@@ -15,8 +15,8 @@ export class Optional<T> {
 	 * @returns new optional with mapped value
 	 */
 	readonly map = <U extends any> (fn: (val: T) => Nullable<U>) => {
-		if(this.value) {
-			return new Optional<U>(fn(this.value));
+		if(this.isPresent()) {
+			return new Optional<U>(fn(this.value!));
 		}
 		return new Optional<U>();
 	};
@@ -28,8 +28,8 @@ export class Optional<T> {
 	 * @returns new optional with mapped value
 	 */
 	readonly flatMap = <U extends any> (fn: (val: T) => Optional<U>) => {
-		if(this.value) {
-			return fn(this.value);
+		if(this.isPresent()) {
+			return fn(this.value!);
 		}
 		return new Optional<U>();
 	};
@@ -41,7 +41,7 @@ export class Optional<T> {
 	 * @returns new empty optional or this
 	 */
 	readonly filter = (fn: (val: T) => boolean) => {
-		if(this.value && fn(this.value)) {
+		if(this.isPresent() && fn(this.value!)) {
 			return this;
 		}
 		return new Optional<T>();
@@ -86,8 +86,8 @@ export class Optional<T> {
 	 * @throws the supplied error
 	 */
 	readonly elseThrow = (err: () => Error): T => {
-		if(this.value) {
-			return this.value;
+		if(this.isPresent()) {
+			return this.value!;
 		}
 		throw err();
 	};
@@ -98,7 +98,7 @@ export class Optional<T> {
 	 * @param fn alternative optional supplier
 	 * @returns this or alternative optional
 	 */
-	readonly or = (fn: () => Optional<T>) => this.value ? this : fn();
+	readonly or = (fn: () => Optional<T>) => this.isPresent() ? this : fn();
 
 	/**
 	 * Checks if a value is present.
@@ -121,7 +121,6 @@ export class Optional<T> {
 	 */
 	readonly ifPresent = (fn: (val: T) => void) => {
 		if(this.isPresent()) {
-			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 			fn(this.value!);
 		}
 	};
